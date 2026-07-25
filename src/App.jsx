@@ -1527,6 +1527,99 @@ function ReportesModule({ products, clients, sales, organization }) {
 }
 
 // ============================================================
+// SUBSCRIPTION MODULE
+// ============================================================
+function SubscriptionModule({ isEmpresarial, isEmprendedor, userLimit, productLimit }) {
+  return (
+    <div className="flex flex-col items-center py-10 px-4 h-full overflow-y-auto w-full">
+      <div className="max-w-5xl w-full">
+        <div className="text-center mb-10">
+          <h2 className="text-3xl font-extrabold text-[#0a235c]">Beneficios de tu Suscripción</h2>
+          <p className="text-gray-500 mt-2 text-sm">Asegúrate de seleccionar el plan correcto en el panel inferior para disfrutar de estos beneficios.</p>
+        </div>
+        
+        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto mb-16">
+          {/* Plan Emprendedor */}
+          <div className="p-8 rounded-[2rem] bg-white border border-gray-200 shadow-sm flex flex-col relative overflow-hidden">
+            {isEmprendedor && !isEmpresarial && (
+              <div className="absolute top-0 right-0 bg-green-500 text-white text-[10px] font-bold px-4 py-1.5 rounded-bl-xl uppercase tracking-widest">
+                Plan Actual
+              </div>
+            )}
+            <h3 className="text-2xl font-bold text-[#0a235c] mb-2">Plan Emprendedor</h3>
+            <p className="text-gray-500 mb-6 text-sm">Ideal para pequeños comercios que están empezando.</p>
+            <div className="flex items-baseline gap-1 mb-8">
+              <span className="text-4xl font-extrabold text-gray-900">$15</span>
+              <span className="text-gray-500 font-medium text-sm">/mes</span>
+            </div>
+            <ul className="space-y-4 mb-6 flex-1 text-sm">
+              <li className="flex items-center gap-3 text-gray-700 font-medium"><CheckCircle2 className="text-[#128bb5] w-5 h-5" /> 1 Sucursal</li>
+              <li className="flex items-center gap-3 text-gray-700 font-medium"><CheckCircle2 className="text-[#128bb5] w-5 h-5" /> Hasta 500 productos</li>
+              <li className="flex items-center gap-3 text-gray-700 font-medium"><CheckCircle2 className="text-[#128bb5] w-5 h-5" /> 2 Usuarios (Cajeros)</li>
+              <li className="flex items-center gap-3 text-gray-700 font-medium"><CheckCircle2 className="text-[#128bb5] w-5 h-5" /> Soporte por email</li>
+            </ul>
+          </div>
+          
+          {/* Plan Empresarial */}
+          <div className="p-8 rounded-[2rem] bg-[#0a235c] text-white shadow-2xl relative overflow-hidden flex flex-col border border-blue-900/50">
+            {isEmpresarial ? (
+              <div className="absolute top-0 right-0 bg-green-500 text-white text-[10px] font-bold px-4 py-1.5 rounded-bl-xl uppercase tracking-widest">
+                Plan Actual
+              </div>
+            ) : (
+              <div className="absolute top-0 right-0 bg-[#128bb5] text-[10px] font-bold px-4 py-1.5 rounded-bl-xl uppercase tracking-widest">
+                Recomendado
+              </div>
+            )}
+            <h3 className="text-2xl font-bold mb-2">Plan Empresarial</h3>
+            <p className="text-blue-200 mb-6 text-sm">Para PYMES consolidadas que necesitan máximo control.</p>
+            <div className="flex items-baseline gap-1 mb-8">
+              <span className="text-4xl font-extrabold">$30</span>
+              <span className="text-blue-300 font-medium text-sm">/mes</span>
+            </div>
+            <ul className="space-y-4 mb-6 flex-1 text-sm">
+              <li className="flex items-center gap-3 text-blue-50 font-medium"><CheckCircle2 className="text-[#128bb5] w-5 h-5" /> Múltiples Sucursales</li>
+              <li className="flex items-center gap-3 text-blue-50 font-medium"><CheckCircle2 className="text-[#128bb5] w-5 h-5" /> Productos Ilimitados</li>
+              <li className="flex items-center gap-3 text-blue-50 font-medium"><CheckCircle2 className="text-[#128bb5] w-5 h-5" /> Usuarios Ilimitados</li>
+              <li className="flex items-center gap-3 text-blue-50 font-medium"><CheckCircle2 className="text-[#128bb5] w-5 h-5" /> Soporte prioritario 24/7</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="mb-8 bg-blue-50 border border-blue-100 p-5 rounded-2xl text-center w-full">
+          <h4 className="font-bold text-[#0a235c] text-lg mb-2">Tu Estado Actual: {isEmpresarial ? 'Empresarial' : (isEmprendedor ? 'Emprendedor' : 'Free')}</h4>
+          <p className="text-sm text-[#128bb5] mb-2 font-medium">Límite de Cajeros (Usuarios): {userLimit === Infinity ? 'Ilimitado' : userLimit} &nbsp;|&nbsp; Límite de Productos: {productLimit === Infinity ? 'Ilimitado' : productLimit}</p>
+          
+          {!isEmpresarial && (
+            <div className="bg-white/60 p-3 rounded-xl mt-3 text-sm text-gray-700">
+              <p>Asegúrate de no sobrepasar el límite de tu plan al invitar nuevos miembros de equipo en el panel de abajo. Si invitas a más usuarios de los permitidos, el sistema bloqueará sus accesos.</p>
+            </div>
+          )}
+        </div>
+
+        <div className="w-full flex justify-center pb-20">
+          <OrganizationProfile 
+            routing="hash" 
+            appearance={{
+              variables: {
+                colorPrimary: '#128bb5',
+                colorBackground: '#ffffff',
+                colorText: '#1f2937',
+              },
+              elements: {
+                card: "shadow-xl border border-gray-100 rounded-3xl",
+                navbarButton: "text-gray-600 hover:text-[#128bb5]",
+                badge: "bg-[#128bb5]/10 text-[#128bb5]"
+              }
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
 // MAIN APP COMPONENT
 // ============================================================
 export default function App() {
@@ -1607,28 +1700,7 @@ export default function App() {
       case 'reportes':
         return <ReportesModule products={products} clients={clients} sales={sales} organization={organization} />
       case 'suscripcion':
-        return (
-          <div className="flex flex-col items-center py-8 h-full overflow-y-auto">
-            <div className="mb-6 bg-blue-50 border border-blue-100 p-5 rounded-2xl text-center max-w-2xl w-full">
-              <h4 className="font-bold text-[#0a235c] text-lg mb-2">Tu Plan Actual: {isEmpresarial ? 'Empresarial' : (isEmprendedor ? 'Emprendedor' : 'Free')}</h4>
-              <p className="text-sm text-[#128bb5] mb-2 font-medium">Límite de Cajeros (Usuarios): {userLimit === Infinity ? 'Ilimitado' : userLimit} &nbsp;|&nbsp; Límite de Productos: {productLimit === Infinity ? 'Ilimitado' : productLimit}</p>
-              
-              {!isEmpresarial && (
-                <div className="bg-white/60 p-3 rounded-xl mt-3 text-sm text-gray-700">
-                  {!isEmprendedor ? (
-                    <p className="text-red-600 font-semibold mb-1">¡Estás en el plan Free!</p>
-                  ) : (
-                    <p className="text-orange-600 font-semibold mb-1">Plan Emprendedor activo</p>
-                  )}
-                  <p>Asegúrate de no sobrepasar el límite de tu plan al invitar nuevos miembros de equipo en el panel de abajo. Si invitas a más usuarios de los permitidos, el sistema podría bloquear sus accesos.</p>
-                </div>
-              )}
-            </div>
-            <div className={`w-full flex justify-center ${!isEmpresarial && !isEmprendedor ? 'opacity-90 pointer-events-auto' : ''}`}>
-              <OrganizationProfile routing="hash" />
-            </div>
-          </div>
-        )
+        return <SubscriptionModule isEmpresarial={isEmpresarial} isEmprendedor={isEmprendedor} userLimit={userLimit} productLimit={productLimit} />
       default:
         return (
           <DashboardModule
