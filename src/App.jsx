@@ -1,0 +1,1278 @@
+import { useState, useEffect, useCallback } from 'react'
+import {
+  LayoutDashboard,
+  ShoppingCart,
+  Package,
+  Users,
+  DollarSign,
+  AlertTriangle,
+  Plus,
+  Search,
+  Trash2,
+  Minus,
+  ChevronRight,
+  TrendingUp,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  Receipt,
+  UserCircle,
+  Menu,
+  X,
+  Loader2,
+  RefreshCw,
+  CreditCard,
+} from 'lucide-react'
+
+import {
+  listProducts,
+  listClients,
+  listSales,
+  createProduct,
+  createClient,
+  processSale,
+} from './lib/appwrite'
+
+import {
+  SignedIn,
+  SignedOut,
+  SignIn,
+  UserButton,
+  OrganizationProfile,
+  useAuth
+} from '@clerk/clerk-react'
+
+// ============================================================
+// SIDEBAR COMPONENT
+// ============================================================
+const navItems = [
+  { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { key: 'ventas', label: 'Ventas (POS)', icon: ShoppingCart },
+  { key: 'inventario', label: 'Inventario', icon: Package },
+  { key: 'clientes', label: 'Clientes', icon: Users },
+  { key: 'suscripcion', label: 'Suscripción', icon: CreditCard },
+]
+
+function Sidebar({ activeModule, setActiveModule, mobileOpen, setMobileOpen, orgRole }) {
+  const isCashier = orgRole === 'org:member'
+  const filteredNavItems = navItems.filter(item => {
+    if (isCashier && item.key !== 'ventas') return false
+    return true
+  })
+
+  return (
+    <>
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      <aside
+        className={`
+          fixed top-0 left-0 z-50 h-screen w-[260px] bg-[#0a235c] flex flex-col
+          transition-transform duration-300 ease-in-out
+          lg:translate-x-0 lg:static lg:z-auto
+          ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
+      >
+        {/* Logo */}
+        <div className="flex items-center gap-3 px-6 py-6 border-b border-white/10">
+          <img
+            src="/logo.jpeg"
+            alt="Businessia Logo"
+            className="w-11 h-11 rounded-xl object-cover bg-white shadow-md"
+          />
+          <div>
+            <h1 className="text-white font-extrabold text-lg tracking-tight leading-none">
+              Businessia
+            </h1>
+            <span className="text-cyan-300 text-[11px] font-medium tracking-wide">
+              Crecemos contigo
+            </span>
+          </div>
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="ml-auto lg:hidden text-white/60 hover:text-white"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 px-3 py-5 space-y-1">
+          {filteredNavItems.map((item) => {
+            const Icon = item.icon
+            const isActive = activeModule === item.key
+            return (
+              <button
+                key={item.key}
+                onClick={() => {
+                  setActiveModule(item.key)
+                  setMobileOpen(false)
+                }}
+                className={`
+                  w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium
+                  transition-all duration-200 cursor-pointer group
+                  ${isActive
+                    ? 'bg-[#128bb5] text-white shadow-lg shadow-cyan-500/20'
+                    : 'text-white/60 hover:text-white hover:bg-white/8'
+                  }
+                `}
+              >
+                <Icon
+                  size={19}
+                  className={`transition-transform duration-200 ${isActive ? '' : 'group-hover:scale-110'}`}
+                />
+                {item.label}
+                {isActive && <ChevronRight size={15} className="ml-auto opacity-60" />}
+              </button>
+            )
+          })}
+        </nav>
+
+        {/* Footer */}
+        <div className="px-5 py-4 border-t border-white/10">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-[#128bb5] flex items-center justify-center">
+              <span className="text-white text-xs font-bold">PV</span>
+            </div>
+            <div>
+              <p className="text-white text-xs font-semibold">Portoviejo</p>
+              <p className="text-white/40 text-[10px]">Sucursal Principal</p>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </>
+  )
+}
+
+// ============================================================
+// HEADER COMPONENT
+// ============================================================
+function Header({ activeModule, setMobileOpen }) {
+  const titles = {
+    dashboard: 'Panel Principal',
+    ventas: 'Punto de Venta',
+    inventario: 'Gestión de Inventario',
+    clientes: 'Gestión de Clientes',
+    suscripcion: 'Suscripción y Planes',
+  }
+
+  const now = new Date()
+  const dateStr = now.toLocaleDateString('es-EC', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+
+  return (
+    <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-lg border-b border-gray-100">
+      <div className="flex items-center justify-between px-5 lg:px-8 py-4">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setMobileOpen(true)}
+            className="lg:hidden p-2 rounded-xl hover:bg-gray-100 text-gray-600"
+          >
+            <Menu size={20} />
+          </button>
+          <div>
+            <h2 className="text-lg lg:text-xl font-extrabold text-[#0a235c] tracking-tight">
+              {titles[activeModule]}
+            </h2>
+            <p className="text-xs text-gray-400 capitalize mt-0.5">{dateStr}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="hidden sm:flex items-center gap-2 bg-gray-50 rounded-xl px-4 py-2 border border-gray-100">
+            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-xs text-gray-500 font-medium">En línea</span>
+          </div>
+          <div className="flex items-center gap-2.5 bg-gray-50 rounded-xl px-3 py-2 border border-gray-100">
+            <UserButton />
+            <div className="hidden sm:block">
+              <p className="text-xs font-semibold text-gray-700 leading-none">Mi Cuenta</p>
+              <p className="text-[10px] text-gray-400 mt-0.5">Gestión de Perfil</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+  )
+}
+
+// ============================================================
+// LOADING SPINNER
+// ============================================================
+function LoadingSpinner({ text = 'Cargando...' }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <Loader2 size={40} className="text-[#128bb5] animate-spin mb-3" />
+      <p className="text-sm text-gray-500 font-medium">{text}</p>
+    </div>
+  )
+}
+
+// ============================================================
+// KPI CARD COMPONENT
+// ============================================================
+function KpiCard({ icon: Icon, label, value, subtext, bgColor, iconColor, trend }) {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow duration-300 group">
+      <div className="flex items-start justify-between">
+        <div className={`w-11 h-11 ${bgColor} rounded-xl flex items-center justify-center transition-transform duration-300 group-hover:scale-110`}>
+          <Icon size={20} className={iconColor} />
+        </div>
+        {trend && (
+          <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">
+            <TrendingUp size={12} />
+            {trend}
+          </span>
+        )}
+      </div>
+      <div className="mt-4">
+        <p className="text-2xl font-extrabold text-[#0a235c] tracking-tight">{value}</p>
+        <p className="text-sm text-gray-500 font-medium mt-0.5">{label}</p>
+        {subtext && <p className="text-xs text-gray-400 mt-1">{subtext}</p>}
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// ADD PRODUCT MODAL
+// ============================================================
+function AddProductModal({ onClose, onSave }) {
+  const [form, setForm] = useState({ name: '', category: '', price: '', stock: '', sku: '' })
+  const [saving, setSaving] = useState(false)
+
+  const handleSave = async () => {
+    if (!form.name || !form.category || !form.price || !form.stock || !form.sku) return
+    setSaving(true)
+    try {
+      await onSave({
+        name: form.name,
+        category: form.category,
+        price: parseFloat(form.price),
+        stock: parseInt(form.stock),
+        sku: form.sku,
+      })
+      onClose()
+    } catch (e) {
+      console.error('Error creating product:', e)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-lg font-bold text-[#0a235c]">Añadir Producto</h3>
+        <div className="space-y-3">
+          {[
+            { key: 'name', label: 'Nombre', placeholder: 'Ej: Arroz (Saco 50lb)' },
+            { key: 'category', label: 'Categoría', placeholder: 'Ej: Granos' },
+            { key: 'sku', label: 'SKU', placeholder: 'Ej: GR-004' },
+            { key: 'price', label: 'Precio ($)', placeholder: '0.00', type: 'number' },
+            { key: 'stock', label: 'Stock Inicial', placeholder: '0', type: 'number' },
+          ].map((field) => (
+            <div key={field.key}>
+              <label className="text-xs font-semibold text-gray-600 mb-1 block">{field.label}</label>
+              <input
+                type={field.type || 'text'}
+                placeholder={field.placeholder}
+                value={form[field.key]}
+                onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-[#128bb5]/30 focus:border-[#128bb5]"
+              />
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-3 pt-2">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 cursor-pointer"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-[#128bb5] to-[#0a235c] text-white text-sm font-semibold shadow-md cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {saving && <Loader2 size={14} className="animate-spin" />}
+            {saving ? 'Guardando...' : 'Guardar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// ADD CLIENT MODAL
+// ============================================================
+function AddClientModal({ onClose, onSave }) {
+  const [form, setForm] = useState({ name: '', cedula: '', phone: '' })
+  const [saving, setSaving] = useState(false)
+
+  const handleSave = async () => {
+    if (!form.name || !form.cedula || !form.phone) return
+    setSaving(true)
+    try {
+      await onSave({
+        name: form.name,
+        cedula: form.cedula,
+        phone: form.phone,
+        purchases: 0,
+      })
+      onClose()
+    } catch (e) {
+      console.error('Error creating client:', e)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-lg font-bold text-[#0a235c]">Registrar Cliente</h3>
+        <div className="space-y-3">
+          {[
+            { key: 'name', label: 'Nombre Completo', placeholder: 'Ej: María López' },
+            { key: 'cedula', label: 'Cédula', placeholder: 'Ej: 1312345678' },
+            { key: 'phone', label: 'Teléfono', placeholder: 'Ej: 0991234567' },
+          ].map((field) => (
+            <div key={field.key}>
+              <label className="text-xs font-semibold text-gray-600 mb-1 block">{field.label}</label>
+              <input
+                type="text"
+                placeholder={field.placeholder}
+                value={form[field.key]}
+                onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-[#128bb5]/30 focus:border-[#128bb5]"
+              />
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-3 pt-2">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 cursor-pointer"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-[#128bb5] to-[#0a235c] text-white text-sm font-semibold shadow-md cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {saving && <Loader2 size={14} className="animate-spin" />}
+            {saving ? 'Guardando...' : 'Guardar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// DASHBOARD MODULE
+// ============================================================
+function DashboardModule({ products, clients, sales, loading, onNavigate }) {
+  if (loading) return <LoadingSpinner text="Cargando dashboard..." />
+
+  const lowStock = products.filter((p) => p.stock < 5).length
+
+  // Calculate today's sales
+  const today = new Date().toISOString().slice(0, 10)
+  const todaySales = sales.filter((s) => s.createdDate && s.createdDate.slice(0, 10) === today)
+  const todayTotal = todaySales.reduce((sum, s) => sum + s.total, 0)
+  const todayCount = todaySales.length
+
+  return (
+    <div className="space-y-6">
+      {/* KPIs */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <KpiCard
+          icon={DollarSign}
+          label="Ventas del Día"
+          value={`$${todayTotal.toFixed(2)}`}
+          subtext={`${todayCount} transaccion${todayCount !== 1 ? 'es' : ''} hoy`}
+          bgColor="bg-emerald-50"
+          iconColor="text-emerald-600"
+        />
+        <KpiCard
+          icon={Package}
+          label="Total Productos"
+          value={products.length}
+          subtext="En catálogo activo"
+          bgColor="bg-blue-50"
+          iconColor="text-blue-600"
+        />
+        <KpiCard
+          icon={Users}
+          label="Clientes"
+          value={clients.length}
+          subtext="Clientes registrados"
+          bgColor="bg-violet-50"
+          iconColor="text-violet-600"
+        />
+        <KpiCard
+          icon={AlertTriangle}
+          label="Alertas de Stock"
+          value={lowStock}
+          subtext="Productos con stock bajo"
+          bgColor="bg-amber-50"
+          iconColor="text-amber-600"
+        />
+      </div>
+
+      {/* Quick Actions + Recent Sales */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Quick Actions */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <h3 className="text-sm font-bold text-[#0a235c] uppercase tracking-wider mb-4">
+            Acciones Rápidas
+          </h3>
+          <div className="space-y-3">
+            <button
+              onClick={() => onNavigate('ventas')}
+              className="w-full flex items-center gap-3 bg-gradient-to-r from-[#128bb5] to-[#0a235c] text-white rounded-xl px-4 py-3.5 text-sm font-semibold shadow-md shadow-cyan-500/20 hover:shadow-lg hover:shadow-cyan-500/30 transition-all duration-300 hover:-translate-y-0.5 cursor-pointer"
+            >
+              <ShoppingCart size={18} />
+              Nueva Venta
+            </button>
+            <button
+              onClick={() => onNavigate('inventario')}
+              className="w-full flex items-center gap-3 bg-white border-2 border-dashed border-gray-200 text-gray-600 rounded-xl px-4 py-3.5 text-sm font-semibold hover:border-[#128bb5] hover:text-[#128bb5] transition-all duration-300 cursor-pointer"
+            >
+              <Plus size={18} />
+              Añadir Producto
+            </button>
+            <button
+              onClick={() => onNavigate('clientes')}
+              className="w-full flex items-center gap-3 bg-white border-2 border-dashed border-gray-200 text-gray-600 rounded-xl px-4 py-3.5 text-sm font-semibold hover:border-[#128bb5] hover:text-[#128bb5] transition-all duration-300 cursor-pointer"
+            >
+              <Users size={18} />
+              Registrar Cliente
+            </button>
+          </div>
+        </div>
+
+        {/* Recent Sales */}
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-[#0a235c] uppercase tracking-wider">
+              Ventas Recientes
+            </h3>
+            <span className="text-xs text-gray-400 flex items-center gap-1">
+              <Clock size={12} />
+              Últimas registradas
+            </span>
+          </div>
+          <div className="space-y-3">
+            {sales.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-8">No hay ventas registradas aún</p>
+            ) : (
+              sales.slice(0, 5).map((sale) => {
+                const timeAgo = getTimeAgo(sale.createdDate)
+                return (
+                  <div
+                    key={sale.id}
+                    className="flex items-center justify-between py-3 px-4 rounded-xl hover:bg-gray-50 transition-colors duration-200"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#0a235c] to-[#128bb5] flex items-center justify-center">
+                        <span className="text-white text-xs font-bold">
+                          {sale.clientName.split(' ').map((w) => w[0]).join('').slice(0, 2)}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-800">{sale.clientName}</p>
+                        <p className="text-xs text-gray-400">
+                          {sale.itemCount} producto{sale.itemCount !== 1 ? 's' : ''} · {timeAgo}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-sm font-bold text-emerald-600">
+                      ${sale.total.toFixed(2)}
+                    </span>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Low Stock Alerts */}
+      {lowStock > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <h3 className="text-sm font-bold text-[#0a235c] uppercase tracking-wider mb-4">
+            ⚠️ Productos con Stock Bajo
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {products
+              .filter((p) => p.stock < 5)
+              .map((p) => (
+                <div
+                  key={p.id}
+                  className="flex items-center gap-3 p-3 rounded-xl border border-red-100 bg-red-50/50"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
+                    <AlertTriangle size={16} className="text-red-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800 leading-tight">{p.name}</p>
+                    <p className="text-xs text-red-500 font-medium">{p.stock} unidades</p>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ============================================================
+// INVENTORY MODULE
+// ============================================================
+function InventoryModule({ products, loading, onRefresh, productLimit }) {
+  const [search, setSearch] = useState('')
+  const [filterCategory, setFilterCategory] = useState('Todos')
+  const [showAddModal, setShowAddModal] = useState(false)
+
+  if (loading) return <LoadingSpinner text="Cargando inventario..." />
+
+  const categories = ['Todos', ...new Set(products.map((p) => p.category))]
+
+  const filtered = products.filter((p) => {
+    const matchesSearch =
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.sku.toLowerCase().includes(search.toLowerCase())
+    const matchesCategory = filterCategory === 'Todos' || p.category === filterCategory
+    return matchesSearch && matchesCategory
+  })
+
+  const handleAddProduct = async (product) => {
+    await createProduct(product)
+    onRefresh()
+  }
+
+  return (
+    <div className="space-y-5">
+      {showAddModal && (
+        <AddProductModal onClose={() => setShowAddModal(false)} onSave={handleAddProduct} />
+      )}
+
+      {/* Toolbar */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar producto por nombre o SKU..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-[#128bb5]/30 focus:border-[#128bb5] transition-all duration-200"
+            />
+          </div>
+          <button
+            onClick={() => {
+              if (products.length >= productLimit) {
+                alert('Has alcanzado el límite de productos de tu plan actual. Por favor, mejora tu plan en la pestaña de Suscripción.')
+                return
+              }
+              setShowAddModal(true)
+            }}
+            disabled={products.length >= productLimit}
+            className={`flex items-center gap-1.5 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-all shadow-md ${
+              products.length >= productLimit
+                ? 'bg-gray-400 cursor-not-allowed opacity-70'
+                : 'bg-[#128bb5] hover:bg-[#0e7a9f] cursor-pointer shadow-cyan-500/20'
+            }`}
+          >
+            <Plus size={14} />
+            Nuevo Producto
+          </button>
+          <button
+            onClick={onRefresh}
+            className="flex items-center gap-1.5 bg-gray-100 text-gray-600 text-xs font-semibold px-3 py-2.5 rounded-xl hover:bg-gray-200 transition-colors cursor-pointer"
+          >
+            <RefreshCw size={14} />
+          </button>
+        </div>
+        <div className="flex gap-2 flex-wrap mt-3">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setFilterCategory(cat)}
+              className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                filterCategory === cat
+                  ? 'bg-[#128bb5] text-white shadow-md shadow-cyan-500/20'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Stats row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex items-center gap-3">
+          <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center">
+            <Package size={16} className="text-blue-600" />
+          </div>
+          <div>
+            <p className="text-lg font-extrabold text-[#0a235c]">{products.length}</p>
+            <p className="text-[10px] text-gray-400 font-medium">Total Productos</p>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex items-center gap-3">
+          <div className="w-9 h-9 bg-emerald-50 rounded-lg flex items-center justify-center">
+            <CheckCircle2 size={16} className="text-emerald-600" />
+          </div>
+          <div>
+            <p className="text-lg font-extrabold text-[#0a235c]">{products.filter((p) => p.stock >= 5).length}</p>
+            <p className="text-[10px] text-gray-400 font-medium">Disponibles</p>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex items-center gap-3">
+          <div className="w-9 h-9 bg-red-50 rounded-lg flex items-center justify-center">
+            <AlertTriangle size={16} className="text-red-500" />
+          </div>
+          <div>
+            <p className="text-lg font-extrabold text-[#0a235c]">{products.filter((p) => p.stock < 5).length}</p>
+            <p className="text-[10px] text-gray-400 font-medium">Stock Bajo</p>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex items-center gap-3">
+          <div className="w-9 h-9 bg-violet-50 rounded-lg flex items-center justify-center">
+            <DollarSign size={16} className="text-violet-600" />
+          </div>
+          <div>
+            <p className="text-lg font-extrabold text-[#0a235c]">
+              ${products.reduce((s, p) => s + p.price * p.stock, 0).toFixed(0)}
+            </p>
+            <p className="text-[10px] text-gray-400 font-medium">Valor Inventario</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-100">
+                <th className="text-left px-5 py-3.5 text-xs font-bold text-gray-500 uppercase tracking-wider">SKU</th>
+                <th className="text-left px-5 py-3.5 text-xs font-bold text-gray-500 uppercase tracking-wider">Producto</th>
+                <th className="text-left px-5 py-3.5 text-xs font-bold text-gray-500 uppercase tracking-wider">Categoría</th>
+                <th className="text-right px-5 py-3.5 text-xs font-bold text-gray-500 uppercase tracking-wider">Precio</th>
+                <th className="text-center px-5 py-3.5 text-xs font-bold text-gray-500 uppercase tracking-wider">Stock</th>
+                <th className="text-center px-5 py-3.5 text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((product, i) => (
+                <tr
+                  key={product.id}
+                  className={`border-b border-gray-50 hover:bg-gray-50/80 transition-colors duration-150 ${
+                    i % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
+                  }`}
+                >
+                  <td className="px-5 py-3.5 text-xs text-gray-400 font-mono">{product.sku}</td>
+                  <td className="px-5 py-3.5 font-semibold text-gray-800">{product.name}</td>
+                  <td className="px-5 py-3.5">
+                    <span className="bg-gray-100 text-gray-600 text-xs font-medium px-2.5 py-1 rounded-lg">
+                      {product.category}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3.5 text-right font-bold text-[#0a235c]">
+                    ${product.price.toFixed(2)}
+                  </td>
+                  <td className="px-5 py-3.5 text-center font-semibold text-gray-700">{product.stock}</td>
+                  <td className="px-5 py-3.5 text-center">
+                    {product.stock < 5 ? (
+                      <span className="inline-flex items-center gap-1 bg-red-50 text-red-600 text-xs font-semibold px-3 py-1 rounded-full">
+                        <XCircle size={12} />
+                        Bajo Stock
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-600 text-xs font-semibold px-3 py-1 rounded-full">
+                        <CheckCircle2 size={12} />
+                        Disponible
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="text-center py-12 text-gray-400">
+                    <Package size={40} className="mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">No se encontraron productos</p>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div className="px-5 py-3 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p className="text-xs text-gray-400">
+            Mostrando {filtered.length} de {products.length} productos
+          </p>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-gray-600">
+              Uso del Plan: {products.length} / {productLimit === Infinity ? 'Ilimitado' : productLimit}
+            </span>
+            {products.length >= productLimit && (
+              <span className="text-[10px] bg-red-100 text-red-600 px-2 py-1 rounded-md font-bold uppercase tracking-wide">
+                Límite Alcanzado
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// SALES (POS) MODULE
+// ============================================================
+function SalesModule({ products, onRefresh }) {
+  const [search, setSearch] = useState('')
+  const [cart, setCart] = useState([])
+  const [clientName, setClientName] = useState('Consumidor Final')
+  const [processing, setProcessing] = useState(false)
+  const [saleSuccess, setSaleSuccess] = useState(false)
+
+  const filteredProducts = products.filter((p) =>
+    p.name.toLowerCase().includes(search.toLowerCase())
+  )
+
+  const addToCart = (product) => {
+    setCart((prev) => {
+      const existing = prev.find((item) => item.id === product.id)
+      if (existing) {
+        if (existing.qty >= product.stock) return prev
+        return prev.map((item) =>
+          item.id === product.id ? { ...item, qty: item.qty + 1 } : item
+        )
+      }
+      return [...prev, { ...product, qty: 1, originalStock: product.stock }]
+    })
+  }
+
+  const removeFromCart = (productId) => {
+    setCart((prev) => prev.filter((item) => item.id !== productId))
+  }
+
+  const updateQty = (productId, delta) => {
+    setCart((prev) =>
+      prev
+        .map((item) => {
+          if (item.id !== productId) return item
+          const newQty = Math.max(0, Math.min(item.originalStock, item.qty + delta))
+          return { ...item, qty: newQty }
+        })
+        .filter((item) => item.qty > 0)
+    )
+  }
+
+  const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0)
+  const iva = subtotal * 0.15
+  const total = subtotal + iva
+
+  const handleConfirmSale = async () => {
+    if (cart.length === 0 || processing) return
+    setProcessing(true)
+    try {
+      await processSale(cart, clientName)
+      setSaleSuccess(true)
+      setCart([])
+      setClientName('Consumidor Final')
+      onRefresh()
+      setTimeout(() => setSaleSuccess(false), 3000)
+    } catch (e) {
+      console.error('Error processing sale:', e)
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col lg:flex-row gap-5 h-[calc(100vh-130px)]">
+      {/* Success Toast */}
+      {saleSuccess && (
+        <div className="fixed top-4 right-4 z-50 bg-emerald-500 text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-bounce">
+          <CheckCircle2 size={18} />
+          <span className="text-sm font-semibold">¡Venta registrada exitosamente!</span>
+        </div>
+      )}
+
+      {/* Products Panel - 70% */}
+      <div className="lg:w-[70%] flex flex-col gap-4 min-h-0">
+        {/* Search */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+          <div className="relative">
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar productos para agregar..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-[#128bb5]/30 focus:border-[#128bb5] transition-all duration-200"
+            />
+          </div>
+        </div>
+
+        {/* Product Grid */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex-1 overflow-y-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+            {filteredProducts.map((product) => {
+              const inCart = cart.find((item) => item.id === product.id)
+              return (
+                <button
+                  key={product.id}
+                  onClick={() => addToCart(product)}
+                  disabled={product.stock < 1}
+                  className={`
+                    relative text-left p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer group
+                    ${inCart
+                      ? 'border-[#128bb5] bg-cyan-50/50 shadow-md shadow-cyan-500/10'
+                      : 'border-gray-100 hover:border-[#128bb5]/40 hover:shadow-md'
+                    }
+                    ${product.stock < 1 ? 'opacity-50 cursor-not-allowed' : ''}
+                  `}
+                >
+                  {inCart && (
+                    <span className="absolute -top-2 -right-2 w-6 h-6 bg-[#128bb5] text-white text-xs font-bold rounded-full flex items-center justify-center shadow-lg">
+                      {inCart.qty}
+                    </span>
+                  )}
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800 group-hover:text-[#0a235c] transition-colors line-clamp-1">
+                        {product.name}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">{product.category} · {product.sku}</p>
+                    </div>
+                    <p className="text-sm font-extrabold text-[#128bb5] whitespace-nowrap">
+                      ${product.price.toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                      product.stock < 5 ? 'bg-red-50 text-red-500' : 'bg-emerald-50 text-emerald-600'
+                    }`}>
+                      Stock: {product.stock}
+                    </span>
+                    <Plus size={16} className="text-gray-300 group-hover:text-[#128bb5] transition-colors" />
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Cart Panel - 30% */}
+      <div className="lg:w-[30%] bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col min-h-0">
+        {/* Cart Header */}
+        <div className="px-5 py-4 border-b border-gray-100">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-9 h-9 rounded-xl bg-[#0a235c] flex items-center justify-center">
+              <Receipt size={16} className="text-white" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-[#0a235c]">Resumen de Venta</h3>
+              <p className="text-[10px] text-gray-400">
+                {cart.length} producto{cart.length !== 1 ? 's' : ''} en carrito
+              </p>
+            </div>
+          </div>
+          {/* Client input */}
+          <input
+            type="text"
+            placeholder="Nombre del cliente..."
+            value={clientName}
+            onChange={(e) => setClientName(e.target.value)}
+            className="w-full px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-[#128bb5]/30 focus:border-[#128bb5]"
+          />
+        </div>
+
+        {/* Cart Items */}
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+          {cart.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-gray-300">
+              <ShoppingCart size={48} className="mb-3 opacity-30" />
+              <p className="text-sm font-medium text-gray-400">Carrito vacío</p>
+              <p className="text-xs text-gray-300 mt-1">Selecciona productos para agregar</p>
+            </div>
+          ) : (
+            cart.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100 group"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-800 truncate">{item.name}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">${item.price.toFixed(2)} c/u</p>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => updateQty(item.id, -1)}
+                    className="w-7 h-7 rounded-lg bg-white border border-gray-200 flex items-center justify-center hover:bg-red-50 hover:border-red-200 transition-colors cursor-pointer"
+                  >
+                    <Minus size={12} className="text-gray-500" />
+                  </button>
+                  <span className="w-7 text-center text-sm font-bold text-[#0a235c]">{item.qty}</span>
+                  <button
+                    onClick={() => updateQty(item.id, 1)}
+                    className="w-7 h-7 rounded-lg bg-white border border-gray-200 flex items-center justify-center hover:bg-emerald-50 hover:border-emerald-200 transition-colors cursor-pointer"
+                  >
+                    <Plus size={12} className="text-gray-500" />
+                  </button>
+                </div>
+                <div className="text-right ml-1">
+                  <p className="text-sm font-bold text-[#0a235c]">${(item.price * item.qty).toFixed(2)}</p>
+                  <button
+                    onClick={() => removeFromCart(item.id)}
+                    className="text-gray-300 hover:text-red-500 transition-colors cursor-pointer mt-0.5"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Cart Footer */}
+        <div className="border-t border-gray-100 px-5 py-4 space-y-3">
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Subtotal</span>
+              <span className="font-semibold text-gray-700">${subtotal.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">IVA (15%)</span>
+              <span className="font-semibold text-gray-700">${iva.toFixed(2)}</span>
+            </div>
+            <div className="h-px bg-gray-100 my-2" />
+            <div className="flex justify-between">
+              <span className="text-base font-bold text-[#0a235c]">Total</span>
+              <span className="text-xl font-extrabold text-[#0a235c]">${total.toFixed(2)}</span>
+            </div>
+          </div>
+
+          <button
+            disabled={cart.length === 0 || processing}
+            onClick={handleConfirmSale}
+            className={`
+              w-full py-3.5 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer
+              ${cart.length > 0 && !processing
+                ? 'bg-gradient-to-r from-[#128bb5] to-[#0a235c] text-white shadow-lg shadow-cyan-500/25 hover:shadow-xl hover:shadow-cyan-500/35 hover:-translate-y-0.5 active:translate-y-0'
+                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              }
+            `}
+          >
+            <span className="flex items-center justify-center gap-2">
+              {processing ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  Procesando...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={18} />
+                  Confirmar Venta
+                </>
+              )}
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// CLIENTS MODULE
+// ============================================================
+function ClientsModule({ clients, loading, onRefresh }) {
+  const [showAddModal, setShowAddModal] = useState(false)
+
+  if (loading) return <LoadingSpinner text="Cargando clientes..." />
+
+  const handleAddClient = async (client) => {
+    await createClient(client)
+    onRefresh()
+  }
+
+  return (
+    <div className="space-y-5">
+      {showAddModal && (
+        <AddClientModal onClose={() => setShowAddModal(false)} onSave={handleAddClient} />
+      )}
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
+          <div className="w-11 h-11 bg-violet-50 rounded-xl flex items-center justify-center">
+            <Users size={20} className="text-violet-600" />
+          </div>
+          <div>
+            <p className="text-2xl font-extrabold text-[#0a235c]">{clients.length}</p>
+            <p className="text-sm text-gray-500 font-medium">Clientes Registrados</p>
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
+          <div className="w-11 h-11 bg-emerald-50 rounded-xl flex items-center justify-center">
+            <TrendingUp size={20} className="text-emerald-600" />
+          </div>
+          <div>
+            <p className="text-2xl font-extrabold text-[#0a235c]">
+              {clients.reduce((s, c) => s + c.purchases, 0)}
+            </p>
+            <p className="text-sm text-gray-500 font-medium">Compras Totales</p>
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
+          <div className="w-11 h-11 bg-amber-50 rounded-xl flex items-center justify-center">
+            <DollarSign size={20} className="text-amber-600" />
+          </div>
+          <div>
+            <p className="text-2xl font-extrabold text-[#0a235c]">
+              {clients.length > 0
+                ? `$${(clients.reduce((s, c) => s + c.purchases, 0) * 30).toLocaleString()}`
+                : '$0'}
+            </p>
+            <p className="text-sm text-gray-500 font-medium">Valor Estimado</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Clients Table */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+          <h3 className="text-sm font-bold text-[#0a235c] uppercase tracking-wider">
+            Directorio de Clientes
+          </h3>
+          <div className="flex gap-2">
+            <button
+              onClick={onRefresh}
+              className="flex items-center gap-1.5 bg-gray-100 text-gray-600 text-xs font-semibold px-3 py-2 rounded-xl hover:bg-gray-200 transition-colors cursor-pointer"
+            >
+              <RefreshCw size={14} />
+            </button>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-1.5 bg-[#128bb5] text-white text-xs font-semibold px-4 py-2 rounded-xl hover:bg-[#0e7a9f] transition-colors cursor-pointer shadow-md shadow-cyan-500/20"
+            >
+              <Plus size={14} />
+              Nuevo Cliente
+            </button>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-100">
+                <th className="text-left px-5 py-3.5 text-xs font-bold text-gray-500 uppercase tracking-wider">Cliente</th>
+                <th className="text-left px-5 py-3.5 text-xs font-bold text-gray-500 uppercase tracking-wider">Cédula</th>
+                <th className="text-left px-5 py-3.5 text-xs font-bold text-gray-500 uppercase tracking-wider">Teléfono</th>
+                <th className="text-center px-5 py-3.5 text-xs font-bold text-gray-500 uppercase tracking-wider">Compras</th>
+              </tr>
+            </thead>
+            <tbody>
+              {clients.map((client, i) => (
+                <tr
+                  key={client.id}
+                  className={`border-b border-gray-50 hover:bg-gray-50/80 transition-colors duration-150 ${
+                    i % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
+                  }`}
+                >
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#0a235c] to-[#128bb5] flex items-center justify-center">
+                        <span className="text-white text-xs font-bold">
+                          {client.name.split(' ').map((w) => w[0]).join('').slice(0, 2)}
+                        </span>
+                      </div>
+                      <span className="font-semibold text-gray-800">{client.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-5 py-3.5 text-gray-500 font-mono text-xs">{client.cedula}</td>
+                  <td className="px-5 py-3.5 text-gray-500">{client.phone}</td>
+                  <td className="px-5 py-3.5 text-center">
+                    <span className="bg-blue-50 text-blue-700 text-xs font-bold px-3 py-1 rounded-full">
+                      {client.purchases}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+              {clients.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="text-center py-12 text-gray-400">
+                    <Users size={40} className="mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">No hay clientes registrados</p>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// HELPER: Time Ago
+// ============================================================
+function getTimeAgo(dateString) {
+  if (!dateString) return ''
+  const now = new Date()
+  const date = new Date(dateString)
+  const diffMs = now - date
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMs / 3600000)
+  const diffDays = Math.floor(diffMs / 86400000)
+
+  if (diffMins < 1) return 'Justo ahora'
+  if (diffMins < 60) return `Hace ${diffMins} min`
+  if (diffHours < 24) return `Hace ${diffHours} hora${diffHours > 1 ? 's' : ''}`
+  return `Hace ${diffDays} día${diffDays > 1 ? 's' : ''}`
+}
+
+// ============================================================
+// MAIN APP COMPONENT
+// ============================================================
+export default function App() {
+  const { has, orgRole } = useAuth()
+  const [activeModule, setActiveModule] = useState('dashboard')
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  // SaaS Limits
+  const isEmpresarial = has ? has({ plan: 'empresarial' }) : false
+  const isEmprendedor = has ? has({ plan: 'emprendedor' }) : false
+  const productLimit = isEmpresarial ? Infinity : (isEmprendedor ? 500 : 5)
+
+  // Redirect Cashiers (org:member) to POS directly
+  useEffect(() => {
+    if (orgRole === 'org:member' && activeModule !== 'ventas') {
+      setActiveModule('ventas')
+    }
+  }, [orgRole, activeModule])
+
+  // Data state from Appwrite
+  const [products, setProducts] = useState([])
+  const [clients, setClients] = useState([])
+  const [sales, setSales] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  // Fetch all data
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [productsData, clientsData, salesData] = await Promise.all([
+        listProducts(),
+        listClients(),
+        listSales(),
+      ])
+      setProducts(productsData)
+      setClients(clientsData)
+      setSales(salesData)
+    } catch (e) {
+      console.error('Error fetching data:', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  const renderModule = () => {
+    switch (activeModule) {
+      case 'dashboard':
+        return (
+          <DashboardModule
+            products={products}
+            clients={clients}
+            sales={sales}
+            loading={loading}
+            onNavigate={setActiveModule}
+          />
+        )
+      case 'ventas':
+        return <SalesModule products={products} onRefresh={fetchData} />
+      case 'inventario':
+        return <InventoryModule products={products} loading={loading} onRefresh={fetchData} productLimit={productLimit} />
+      case 'clientes':
+        return <ClientsModule clients={clients} loading={loading} onRefresh={fetchData} />
+      case 'suscripcion':
+        return (
+          <div className="flex justify-center items-start py-8 h-full">
+            <OrganizationProfile routing="hash" />
+          </div>
+        )
+      default:
+        return (
+          <DashboardModule
+            products={products}
+            clients={clients}
+            sales={sales}
+            loading={loading}
+            onNavigate={setActiveModule}
+          />
+        )
+    }
+  }
+
+  return (
+    <>
+      <SignedIn>
+        <div className="flex h-screen bg-gray-50 font-sans">
+          <Sidebar
+            activeModule={activeModule}
+            setActiveModule={setActiveModule}
+            mobileOpen={mobileOpen}
+            setMobileOpen={setMobileOpen}
+            orgRole={orgRole}
+          />
+
+          {/* Main Content */}
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+            <Header activeModule={activeModule} setMobileOpen={setMobileOpen} />
+
+            <main className="flex-1 overflow-y-auto p-5 lg:p-7">
+              {renderModule()}
+            </main>
+          </div>
+        </div>
+      </SignedIn>
+      <SignedOut>
+        <div className="flex h-screen items-center justify-center bg-gray-50 font-sans">
+          <SignIn routing="hash" />
+        </div>
+      </SignedOut>
+    </>
+  )
+}
