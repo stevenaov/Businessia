@@ -1208,19 +1208,75 @@ function ReportesModule({ products, clients, sales, organization }) {
           
           try {
             const imgData = ctx.getImageData(0, 0, img.width, img.height).data
-            let r=0, g=0, b=0, count=0
-            for (let i = 0; i < imgData.length; i += 4 * 10) { 
-              if (imgData[i+3] > 127 && (imgData[i] < 240 || imgData[i+1] < 240 || imgData[i+2] < 240)) {
-                r += imgData[i]
-                g += imgData[i+1]
-                b += imgData[i+2]
-                count++
+            
+            // Advanced Dominant Color Extraction (Color Quantization & Saturation Weighting)
+            const colorBins = {}
+            let maxScore = 0
+            let bestBin = null
+
+            const getSaturation = (r, g, b) => {
+              const max = Math.max(r, g, b)
+              const min = Math.min(r, g, b)
+              return max === 0 ? 0 : (max - min) / max
+            }
+
+            for (let i = 0; i < imgData.length; i += 4 * 4) { // Sample every 4th pixel for high accuracy
+              const r = imgData[i]
+              const g = imgData[i+1]
+              const b = imgData[i+2]
+              const a = imgData[i+3]
+              
+              // Ignore highly transparent pixels
+              if (a < 127) continue
+              
+              // Ignore near-white (background) pixels
+              if (r > 240 && g > 240 && b > 240) continue
+
+              // Ignore near-black (usually text) if we want a brand color, but keep if it's the only color
+              const isDark = r < 30 && g < 30 && b < 30
+
+              // Quantize colors (group similar colors)
+              const binSize = 24
+              const rBin = Math.round(r / binSize) * binSize
+              const gBin = Math.round(g / binSize) * binSize
+              const bBin = Math.round(b / binSize) * binSize
+              
+              const binKey = `${rBin},${gBin},${bBin}`
+              
+              if (!colorBins[binKey]) {
+                colorBins[binKey] = { r: 0, g: 0, b: 0, count: 0, score: 0 }
+              }
+              
+              // Score pixel. Saturated colors get a big bonus to prioritize brand colors over gray text.
+              const saturation = getSaturation(r, g, b)
+              let score = 1
+              if (!isDark) {
+                 score += saturation * 15 // Heavily weight saturated colors
+              }
+              
+              colorBins[binKey].r += r
+              colorBins[binKey].g += g
+              colorBins[binKey].b += b
+              colorBins[binKey].count += 1
+              colorBins[binKey].score += score
+              
+              if (colorBins[binKey].score > maxScore) {
+                maxScore = colorBins[binKey].score
+                bestBin = colorBins[binKey]
               }
             }
-            if (count > 0) {
-              primaryColor = [Math.floor(r/count), Math.floor(g/count), Math.floor(b/count)]
+            
+            // If we found a dominant color, calculate its exact average
+            if (bestBin && bestBin.count > 0) {
+              primaryColor = [
+                Math.floor(bestBin.r / bestBin.count),
+                Math.floor(bestBin.g / bestBin.count),
+                Math.floor(bestBin.b / bestBin.count)
+              ]
             }
-          } catch(e) {}
+          } catch(e) {
+            console.error('Advanced color extraction failed', e)
+          }
           
           logoDataUrl = canvas.toDataURL('image/png')
           const ratio = img.width / img.height
