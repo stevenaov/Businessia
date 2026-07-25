@@ -40,7 +40,8 @@ import {
   SignIn,
   UserButton,
   OrganizationProfile,
-  useAuth
+  useAuth,
+  useOrganization
 } from '@clerk/clerk-react'
 
 import jsPDF from 'jspdf'
@@ -1387,10 +1388,12 @@ export default function App() {
   const [activeModule, setActiveModule] = useState('dashboard')
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  // SaaS Limits
-  const isEmpresarial = has ? has({ plan: 'empresarial' }) : false
-  const isEmprendedor = has ? has({ plan: 'emprendedor' }) : false
-  const productLimit = isEmpresarial ? Infinity : (isEmprendedor ? 500 : 5)
+  // SaaS Limits (Clerk billing requires checking permissions, roles, or entitlements/features)
+  const isEmpresarial = has ? (has({ permission: 'org:empresarial' }) || has({ role: 'org:empresarial' }) || has({ entitlement: 'empresarial' }) || has({ entitlement: 'plan_empresarial' })) : false
+  const isEmprendedor = has ? (has({ permission: 'org:emprendedor' }) || has({ role: 'org:emprendedor' }) || has({ entitlement: 'emprendedor' }) || has({ entitlement: 'plan_emprendedor' })) : false
+  
+  const productLimit = isEmpresarial ? Infinity : (isEmprendedor ? 500 : 1)
+  const userLimit = isEmpresarial ? Infinity : (isEmprendedor ? 2 : 1)
 
   // Redirect Cashiers (org:member) to POS directly
   useEffect(() => {
@@ -1406,6 +1409,8 @@ export default function App() {
   const [loading, setLoading] = useState(true)
 
   // Fetch all data
+  const { organization } = useOrganization()
+  
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
@@ -1450,8 +1455,25 @@ export default function App() {
         return <ReportesModule products={products} clients={clients} sales={sales} />
       case 'suscripcion':
         return (
-          <div className="flex justify-center items-start py-8 h-full">
-            <OrganizationProfile routing="hash" />
+          <div className="flex flex-col items-center py-8 h-full overflow-y-auto">
+            <div className="mb-6 bg-blue-50 border border-blue-100 p-5 rounded-2xl text-center max-w-2xl w-full">
+              <h4 className="font-bold text-[#0a235c] text-lg mb-2">Tu Plan Actual: {isEmpresarial ? 'Empresarial' : (isEmprendedor ? 'Emprendedor' : 'Free')}</h4>
+              <p className="text-sm text-[#128bb5] mb-2 font-medium">Límite de Cajeros (Usuarios): {userLimit === Infinity ? 'Ilimitado' : userLimit} &nbsp;|&nbsp; Límite de Productos: {productLimit === Infinity ? 'Ilimitado' : productLimit}</p>
+              
+              {!isEmpresarial && (
+                <div className="bg-white/60 p-3 rounded-xl mt-3 text-sm text-gray-700">
+                  {!isEmprendedor ? (
+                    <p className="text-red-600 font-semibold mb-1">¡Estás en el plan Free!</p>
+                  ) : (
+                    <p className="text-orange-600 font-semibold mb-1">Plan Emprendedor activo</p>
+                  )}
+                  <p>Asegúrate de no sobrepasar el límite de tu plan al invitar nuevos miembros de equipo en el panel de abajo. Si invitas a más usuarios de los permitidos, el sistema podría bloquear sus accesos.</p>
+                </div>
+              )}
+            </div>
+            <div className={`w-full flex justify-center ${!isEmpresarial && !isEmprendedor ? 'opacity-90 pointer-events-auto' : ''}`}>
+              <OrganizationProfile routing="hash" />
+            </div>
           </div>
         )
       default:
