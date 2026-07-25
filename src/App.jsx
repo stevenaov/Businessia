@@ -22,6 +22,7 @@ import {
   Loader2,
   RefreshCw,
   CreditCard,
+  FileText,
 } from 'lucide-react'
 
 import {
@@ -42,6 +43,9 @@ import {
   useAuth
 } from '@clerk/clerk-react'
 
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+
 // ============================================================
 // SIDEBAR COMPONENT
 // ============================================================
@@ -51,6 +55,7 @@ const navItems = [
   { key: 'inventario', label: 'Inventario', icon: Package },
   { key: 'clientes', label: 'Clientes', icon: Users },
   { key: 'suscripcion', label: 'Suscripción', icon: CreditCard },
+  { key: 'reportes', label: 'Reportes', icon: FileText },
 ]
 
 function Sidebar({ activeModule, setActiveModule, mobileOpen, setMobileOpen, orgRole }) {
@@ -160,6 +165,7 @@ function Header({ activeModule, setMobileOpen }) {
     inventario: 'Gestión de Inventario',
     clientes: 'Gestión de Clientes',
     suscripcion: 'Suscripción y Planes',
+    reportes: 'Reportes y PDF',
   }
 
   const now = new Date()
@@ -1161,6 +1167,219 @@ function getTimeAgo(dateString) {
 }
 
 // ============================================================
+// REPORTES COMPONENT
+// ============================================================
+function ReportesModule({ products, clients, sales }) {
+  const [options, setOptions] = useState({
+    ventas: true,
+    inventario: true,
+    clientes: true,
+    facturacion: true,
+  })
+
+  const handleToggle = (key) => {
+    setOptions(prev => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  const generarPDF = () => {
+    try {
+      const doc = new jsPDF()
+      const now = new Date()
+      const dateStr = now.toLocaleDateString('es-EC', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+      
+      // Encabezado Businessia
+      doc.setFillColor(10, 35, 92) // #0a235c
+      doc.rect(0, 0, doc.internal.pageSize.width, 35, 'F')
+      
+      doc.setFontSize(24)
+      doc.setTextColor(255, 255, 255)
+      doc.setFont('helvetica', 'bold')
+      doc.text('Businessia', 14, 23)
+      
+      doc.setFontSize(10)
+      doc.setTextColor(18, 139, 181) // #128bb5
+      doc.setFont('helvetica', 'normal')
+      doc.text('Crecemos contigo', 65, 23)
+      
+      let yPos = 45
+      doc.setFontSize(16)
+      doc.setTextColor(10, 35, 92)
+      doc.setFont('helvetica', 'bold')
+      doc.text('Reporte General del Sistema', 14, yPos)
+      
+      yPos += 8
+      doc.setFontSize(10)
+      doc.setTextColor(100, 100, 100)
+      doc.setFont('helvetica', 'normal')
+      doc.text(`Fecha de generación: ${dateStr}`, 14, yPos)
+      
+      yPos += 15
+
+      if (options.ventas) {
+        if (yPos > 250) { doc.addPage(); yPos = 20; }
+        doc.setFontSize(14)
+        doc.setTextColor(10, 35, 92)
+        doc.setFont('helvetica', 'bold')
+        doc.text('Resumen de Ventas', 14, yPos)
+        yPos += 5
+        
+        const tableData = sales.map(s => [
+          new Date(s.createdDate).toLocaleDateString('es-EC'),
+          s.clientName,
+          s.itemCount?.toString() || '0',
+          `$${(s.total || 0).toFixed(2)}`
+        ])
+        
+        autoTable(doc, {
+          startY: yPos,
+          head: [['Fecha', 'Cliente', 'Artículos', 'Total']],
+          body: tableData,
+          theme: 'striped',
+          headStyles: { fillColor: [18, 139, 181], textColor: 255, fontStyle: 'bold' },
+          alternateRowStyles: { fillColor: [245, 247, 250] },
+          styles: { font: 'helvetica', fontSize: 10, cellPadding: 4 }
+        })
+        yPos = doc.lastAutoTable.finalY + 15
+      }
+
+      if (options.inventario) {
+        if (yPos > 250) { doc.addPage(); yPos = 20; }
+        doc.setFontSize(14)
+        doc.setTextColor(10, 35, 92)
+        doc.setFont('helvetica', 'bold')
+        doc.text('Inventario de Productos', 14, yPos)
+        yPos += 5
+        
+        const tableData = products.map(p => [
+          p.name,
+          p.category || 'N/A',
+          p.stock?.toString() || '0',
+          `$${(p.price || 0).toFixed(2)}`
+        ])
+        
+        autoTable(doc, {
+          startY: yPos,
+          head: [['Producto', 'Categoría', 'Stock', 'Precio Unitario']],
+          body: tableData,
+          theme: 'striped',
+          headStyles: { fillColor: [18, 139, 181], textColor: 255, fontStyle: 'bold' },
+          alternateRowStyles: { fillColor: [245, 247, 250] },
+          styles: { font: 'helvetica', fontSize: 10, cellPadding: 4 }
+        })
+        yPos = doc.lastAutoTable.finalY + 15
+      }
+
+      if (options.clientes) {
+        if (yPos > 250) { doc.addPage(); yPos = 20; }
+        doc.setFontSize(14)
+        doc.setTextColor(10, 35, 92)
+        doc.setFont('helvetica', 'bold')
+        doc.text('Listado de Clientes', 14, yPos)
+        yPos += 5
+        
+        const tableData = clients.map(c => [
+          c.name,
+          c.cedula || 'N/A',
+          c.phone || 'N/A',
+          c.purchases?.toString() || '0'
+        ])
+        
+        autoTable(doc, {
+          startY: yPos,
+          head: [['Nombre', 'Cédula', 'Teléfono', 'Compras Realizadas']],
+          body: tableData,
+          theme: 'striped',
+          headStyles: { fillColor: [18, 139, 181], textColor: 255, fontStyle: 'bold' },
+          alternateRowStyles: { fillColor: [245, 247, 250] },
+          styles: { font: 'helvetica', fontSize: 10, cellPadding: 4 }
+        })
+        yPos = doc.lastAutoTable.finalY + 15
+      }
+
+      if (options.facturacion) {
+        if (yPos > 250) { doc.addPage(); yPos = 20; }
+        doc.setFontSize(14)
+        doc.setTextColor(10, 35, 92)
+        doc.setFont('helvetica', 'bold')
+        doc.text('Reporte de Facturación (Transacciones)', 14, yPos)
+        yPos += 5
+        
+        const tableData = sales.map(s => [
+          s.id ? s.id.substring(0, 8).toUpperCase() : 'N/A',
+          new Date(s.createdDate).toLocaleDateString('es-EC'),
+          s.clientName,
+          `$${(s.subtotal || 0).toFixed(2)}`,
+          `$${(s.iva || 0).toFixed(2)}`,
+          `$${(s.total || 0).toFixed(2)}`
+        ])
+        
+        autoTable(doc, {
+          startY: yPos,
+          head: [['Nº Factura', 'Fecha', 'Cliente', 'Subtotal', 'IVA 15%', 'Total']],
+          body: tableData,
+          theme: 'striped',
+          headStyles: { fillColor: [10, 35, 92], textColor: 255, fontStyle: 'bold' },
+          alternateRowStyles: { fillColor: [245, 247, 250] },
+          styles: { font: 'helvetica', fontSize: 10, cellPadding: 4 }
+        })
+        yPos = doc.lastAutoTable.finalY + 15
+      }
+
+      // Pie de página (número de página)
+      const pageCount = doc.internal.getNumberOfPages()
+      for(let i = 1; i <= pageCount; i++) {
+        doc.setPage(i)
+        doc.setFontSize(8)
+        doc.setTextColor(150, 150, 150)
+        doc.text(`Página ${i} de ${pageCount}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' })
+      }
+
+      doc.save('businessia-reportes.pdf')
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      alert('Hubo un error al generar el PDF. Revisa la consola.')
+    }
+  }
+
+  const checkboxOptions = [
+    { key: 'ventas', label: 'Ventas' },
+    { key: 'inventario', label: 'Inventario' },
+    { key: 'clientes', label: 'Clientes' },
+    { key: 'facturacion', label: 'Facturación' },
+  ]
+
+  return (
+    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 max-w-md mx-auto mt-10">
+      <h3 className="text-xl font-bold text-[#0a235c] mb-6">Reportes</h3>
+      
+      <div className="space-y-4 mb-8">
+        {checkboxOptions.map(opt => (
+          <label key={opt.key} className="flex items-center gap-3 cursor-pointer group">
+            <input 
+              type="checkbox" 
+              className="hidden" 
+              checked={options[opt.key]}
+              onChange={() => handleToggle(opt.key)} 
+            />
+            <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${options[opt.key] ? 'bg-[#128bb5] border-[#128bb5]' : 'border-gray-300 group-hover:border-[#128bb5]'}`}>
+              {options[opt.key] && <CheckCircle2 size={14} className="text-white" />}
+            </div>
+            <span className="text-gray-700 font-medium">{opt.label}</span>
+          </label>
+        ))}
+      </div>
+
+      <button
+        onClick={generarPDF}
+        className="w-full bg-[#128bb5] hover:bg-[#0a235c] text-white py-3 rounded-xl font-semibold transition-colors shadow-lg shadow-cyan-500/20"
+      >
+        [ Generar PDF ]
+      </button>
+    </div>
+  )
+}
+
+// ============================================================
 // MAIN APP COMPONENT
 // ============================================================
 export default function App() {
@@ -1227,6 +1446,8 @@ export default function App() {
         return <InventoryModule products={products} loading={loading} onRefresh={fetchData} productLimit={productLimit} />
       case 'clientes':
         return <ClientsModule clients={clients} loading={loading} onRefresh={fetchData} />
+      case 'reportes':
+        return <ReportesModule products={products} clients={clients} sales={sales} />
       case 'suscripcion':
         return (
           <div className="flex justify-center items-start py-8 h-full">
