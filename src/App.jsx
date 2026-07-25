@@ -1389,8 +1389,8 @@ export default function App() {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   // SaaS Limits (Clerk billing requires checking permissions, roles, or entitlements/features)
-  const isEmpresarial = has ? (has({ permission: 'org:empresarial' }) || has({ role: 'org:empresarial' }) || has({ entitlement: 'empresarial' }) || has({ entitlement: 'plan_empresarial' })) : false
-  const isEmprendedor = has ? (has({ permission: 'org:emprendedor' }) || has({ role: 'org:emprendedor' }) || has({ entitlement: 'emprendedor' }) || has({ entitlement: 'plan_emprendedor' })) : false
+  const isEmpresarial = has ? (has({ permission: 'org:empresarial' }) || has({ role: 'org:empresarial' }) || has({ entitlement: 'empresarial' }) || has({ entitlement: 'plan_empresarial' }) || has({ feature: 'empresarial' }) || has({ feature: 'plan_empresarial' })) : false
+  const isEmprendedor = has ? (has({ permission: 'org:emprendedor' }) || has({ role: 'org:emprendedor' }) || has({ entitlement: 'emprendedor' }) || has({ entitlement: 'plan_emprendedor' }) || has({ feature: 'emprendedor' }) || has({ feature: 'plan_emprendedor' })) : false
   
   const productLimit = isEmpresarial ? Infinity : (isEmprendedor ? 500 : 1)
   const userLimit = isEmpresarial ? Infinity : (isEmprendedor ? 2 : 1)
