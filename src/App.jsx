@@ -62,7 +62,7 @@ const navItems = [
 function Sidebar({ activeModule, setActiveModule, mobileOpen, setMobileOpen, orgRole }) {
   const isCashier = orgRole === 'org:member'
   const filteredNavItems = navItems.filter(item => {
-    if (isCashier && item.key !== 'ventas') return false
+    if (isCashier && item.key !== 'ventas' && item.key !== 'clientes') return false
     return true
   })
 
