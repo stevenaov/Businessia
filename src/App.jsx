@@ -1170,7 +1170,7 @@ function getTimeAgo(dateString) {
 // ============================================================
 // REPORTES COMPONENT
 // ============================================================
-function ReportesModule({ products, clients, sales }) {
+function ReportesModule({ products, clients, sales, organization }) {
   const [options, setOptions] = useState({
     ventas: true,
     inventario: true,
@@ -1182,44 +1182,91 @@ function ReportesModule({ products, clients, sales }) {
     setOptions(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
-  const generarPDF = () => {
+  const generarPDF = async () => {
     try {
+      let primaryColor = [18, 139, 181] // Default teal
+      let logoDataUrl = null
+      let logoW = 0
+      let logoH = 0
+
+      // Try to load organization image and extract color
+      if (organization?.hasImage && organization.imageUrl) {
+        try {
+          const img = new Image()
+          img.crossOrigin = "Anonymous"
+          img.src = organization.imageUrl
+          await new Promise((resolve, reject) => {
+            img.onload = resolve
+            img.onerror = reject
+          })
+          
+          const canvas = document.createElement('canvas')
+          canvas.width = img.width
+          canvas.height = img.height
+          const ctx = canvas.getContext('2d')
+          ctx.drawImage(img, 0, 0)
+          
+          try {
+            const imgData = ctx.getImageData(0, 0, img.width, img.height).data
+            let r=0, g=0, b=0, count=0
+            for (let i = 0; i < imgData.length; i += 4 * 10) { 
+              if (imgData[i+3] > 127 && (imgData[i] < 240 || imgData[i+1] < 240 || imgData[i+2] < 240)) {
+                r += imgData[i]
+                g += imgData[i+1]
+                b += imgData[i+2]
+                count++
+              }
+            }
+            if (count > 0) {
+              primaryColor = [Math.floor(r/count), Math.floor(g/count), Math.floor(b/count)]
+            }
+          } catch(e) {}
+          
+          logoDataUrl = canvas.toDataURL('image/png')
+          const ratio = img.width / img.height
+          logoH = 20
+          logoW = logoH * ratio
+        } catch(e) {
+          console.error('Error loading logo for PDF', e)
+        }
+      }
+
       const doc = new jsPDF()
       const now = new Date()
       const dateStr = now.toLocaleDateString('es-EC', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+      const orgName = organization?.name || 'Mi Organización'
       
-      // Encabezado Businessia
-      doc.setFillColor(10, 35, 92) // #0a235c
-      doc.rect(0, 0, doc.internal.pageSize.width, 35, 'F')
+      // Top colored bar
+      doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2])
+      doc.rect(0, 0, doc.internal.pageSize.width, 4, 'F')
       
-      doc.setFontSize(24)
-      doc.setTextColor(255, 255, 255)
+      let textX = 14
+      if (logoDataUrl) {
+        doc.addImage(logoDataUrl, 'PNG', 14, 10, logoW, logoH)
+        textX = 14 + logoW + 5
+      }
+      
+      doc.setFontSize(22)
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2])
       doc.setFont('helvetica', 'bold')
-      doc.text('Businessia', 14, 23)
+      doc.text(orgName, textX, 20)
       
-      doc.setFontSize(10)
-      doc.setTextColor(18, 139, 181) // #128bb5
-      doc.setFont('helvetica', 'normal')
-      doc.text('Crecemos contigo', 65, 23)
-      
-      let yPos = 45
-      doc.setFontSize(16)
-      doc.setTextColor(10, 35, 92)
-      doc.setFont('helvetica', 'bold')
-      doc.text('Reporte General del Sistema', 14, yPos)
-      
-      yPos += 8
-      doc.setFontSize(10)
+      doc.setFontSize(14)
       doc.setTextColor(100, 100, 100)
       doc.setFont('helvetica', 'normal')
-      doc.text(`Fecha de generación: ${dateStr}`, 14, yPos)
+      doc.text('Reporte General del Sistema', textX, 28)
       
-      yPos += 15
+      let yPos = Math.max(35, logoH + 15)
+      
+      doc.setFontSize(10)
+      doc.setTextColor(150, 150, 150)
+      doc.text(`Fecha de generación: ${dateStr}`, 14, yPos)
+      yPos += 12
 
       if (options.ventas) {
         if (yPos > 250) { doc.addPage(); yPos = 20; }
         doc.setFontSize(14)
-        doc.setTextColor(10, 35, 92)
+        doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2])
         doc.setFont('helvetica', 'bold')
         doc.text('Resumen de Ventas', 14, yPos)
         yPos += 5
@@ -1236,7 +1283,7 @@ function ReportesModule({ products, clients, sales }) {
           head: [['Fecha', 'Cliente', 'Artículos', 'Total']],
           body: tableData,
           theme: 'striped',
-          headStyles: { fillColor: [18, 139, 181], textColor: 255, fontStyle: 'bold' },
+          headStyles: { fillColor: primaryColor, textColor: 255, fontStyle: 'bold' },
           alternateRowStyles: { fillColor: [245, 247, 250] },
           styles: { font: 'helvetica', fontSize: 10, cellPadding: 4 }
         })
@@ -1246,7 +1293,7 @@ function ReportesModule({ products, clients, sales }) {
       if (options.inventario) {
         if (yPos > 250) { doc.addPage(); yPos = 20; }
         doc.setFontSize(14)
-        doc.setTextColor(10, 35, 92)
+        doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2])
         doc.setFont('helvetica', 'bold')
         doc.text('Inventario de Productos', 14, yPos)
         yPos += 5
@@ -1263,7 +1310,7 @@ function ReportesModule({ products, clients, sales }) {
           head: [['Producto', 'Categoría', 'Stock', 'Precio Unitario']],
           body: tableData,
           theme: 'striped',
-          headStyles: { fillColor: [18, 139, 181], textColor: 255, fontStyle: 'bold' },
+          headStyles: { fillColor: primaryColor, textColor: 255, fontStyle: 'bold' },
           alternateRowStyles: { fillColor: [245, 247, 250] },
           styles: { font: 'helvetica', fontSize: 10, cellPadding: 4 }
         })
@@ -1273,7 +1320,7 @@ function ReportesModule({ products, clients, sales }) {
       if (options.clientes) {
         if (yPos > 250) { doc.addPage(); yPos = 20; }
         doc.setFontSize(14)
-        doc.setTextColor(10, 35, 92)
+        doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2])
         doc.setFont('helvetica', 'bold')
         doc.text('Listado de Clientes', 14, yPos)
         yPos += 5
@@ -1290,7 +1337,7 @@ function ReportesModule({ products, clients, sales }) {
           head: [['Nombre', 'Cédula', 'Teléfono', 'Compras Realizadas']],
           body: tableData,
           theme: 'striped',
-          headStyles: { fillColor: [18, 139, 181], textColor: 255, fontStyle: 'bold' },
+          headStyles: { fillColor: primaryColor, textColor: 255, fontStyle: 'bold' },
           alternateRowStyles: { fillColor: [245, 247, 250] },
           styles: { font: 'helvetica', fontSize: 10, cellPadding: 4 }
         })
@@ -1300,33 +1347,41 @@ function ReportesModule({ products, clients, sales }) {
       if (options.facturacion) {
         if (yPos > 250) { doc.addPage(); yPos = 20; }
         doc.setFontSize(14)
-        doc.setTextColor(10, 35, 92)
+        doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2])
         doc.setFont('helvetica', 'bold')
-        doc.text('Reporte de Facturación (Transacciones)', 14, yPos)
+        doc.text('Resumen de Facturación Mensual', 14, yPos)
         yPos += 5
         
-        const tableData = sales.map(s => [
-          s.id ? s.id.substring(0, 8).toUpperCase() : 'N/A',
-          new Date(s.createdDate).toLocaleDateString('es-EC'),
-          s.clientName,
-          `$${(s.subtotal || 0).toFixed(2)}`,
-          `$${(s.iva || 0).toFixed(2)}`,
-          `$${(s.total || 0).toFixed(2)}`
-        ])
+        const factData = []
+        let totalGeneral = 0
+        const obj = {}
+        sales.forEach(s => {
+          const d = new Date(s.createdDate)
+          const key = d.toLocaleString('es-EC', { month: 'long', year: 'numeric' })
+          if (!obj[key]) obj[key] = { ventas: 0, ingresos: 0 }
+          obj[key].ventas += 1
+          obj[key].ingresos += (s.total || 0)
+          totalGeneral += (s.total || 0)
+        })
+        
+        for (let k in obj) {
+          factData.push([k, obj[k].ventas.toString(), `$${obj[k].ingresos.toFixed(2)}`])
+        }
+        
+        factData.push(['TOTAL', '-', `$${totalGeneral.toFixed(2)}`])
         
         autoTable(doc, {
           startY: yPos,
-          head: [['Nº Factura', 'Fecha', 'Cliente', 'Subtotal', 'IVA 15%', 'Total']],
-          body: tableData,
+          head: [['Mes', 'Total Ventas', 'Ingresos Estimados']],
+          body: factData,
           theme: 'striped',
-          headStyles: { fillColor: [10, 35, 92], textColor: 255, fontStyle: 'bold' },
+          headStyles: { fillColor: primaryColor, textColor: 255, fontStyle: 'bold' },
           alternateRowStyles: { fillColor: [245, 247, 250] },
           styles: { font: 'helvetica', fontSize: 10, cellPadding: 4 }
         })
-        yPos = doc.lastAutoTable.finalY + 15
       }
 
-      // Pie de página (número de página)
+      // Add "Powered by Businessia" footer to all pages
       const pageCount = doc.internal.getNumberOfPages()
       for(let i = 1; i <= pageCount; i++) {
         doc.setPage(i)
@@ -1452,7 +1507,7 @@ export default function App() {
       case 'clientes':
         return <ClientsModule clients={clients} loading={loading} onRefresh={fetchData} />
       case 'reportes':
-        return <ReportesModule products={products} clients={clients} sales={sales} />
+        return <ReportesModule products={products} clients={clients} sales={sales} organization={organization} />
       case 'suscripcion':
         return (
           <div className="flex flex-col items-center py-8 h-full overflow-y-auto">
