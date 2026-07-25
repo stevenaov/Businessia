@@ -570,15 +570,38 @@ function InventoryModule({ products, loading, onRefresh, productLimit }) {
     return matchesSearch && matchesCategory
   })
 
-  const handleAddProduct = async (product) => {
-    await createProduct(product)
-    onRefresh()
+  // Submit Producto
+  const handleAddProduct = async (e) => {
+    e.preventDefault()
+    if (!organization?.id) {
+      alert('Debes seleccionar una organización.')
+      return
+    }
+    
+    try {
+      if (editMode) {
+        await updateProduct(editMode.id, formData)
+      } else {
+        await createProduct(organization.id, formData)
+      }
+      setEditMode(null)
+      setShowAddModal(false)
+      fetchData()
+    } catch (e) {
+      alert('Error guardando producto')
+    }
   }
 
   return (
     <div className="space-y-5">
       {showAddModal && (
-        <AddProductModal onClose={() => setShowAddModal(false)} onSave={handleAddProduct} />
+        <AddProductModal 
+          onClose={() => { setShowAddModal(false); setEditMode(null); }} 
+          onSave={handleAddProduct} 
+          formData={formData}
+          setFormData={setFormData}
+          editMode={editMode}
+        />
       )}
 
       {/* Toolbar */}
@@ -760,7 +783,7 @@ function InventoryModule({ products, loading, onRefresh, productLimit }) {
 // ============================================================
 // SALES (POS) MODULE
 // ============================================================
-function SalesModule({ products, onRefresh }) {
+function SalesModule({ products, onRefresh, organization, fetchData }) {
   const [search, setSearch] = useState('')
   const [cart, setCart] = useState([])
   const [clientName, setClientName] = useState('Consumidor Final')
@@ -804,15 +827,20 @@ function SalesModule({ products, onRefresh }) {
   const iva = subtotal * 0.15
   const total = subtotal + iva
 
-  const handleConfirmSale = async () => {
+  // Checkout Venta
+  const handleCheckout = async () => {
     if (cart.length === 0 || processing) return
+    if (!organization?.id) {
+      alert('Debes seleccionar una organización.')
+      return
+    }
     setProcessing(true)
     try {
-      await processSale(cart, clientName)
+      await processSale(organization.id, cart, clientName)
       setSaleSuccess(true)
       setCart([])
       setClientName('Consumidor Final')
-      onRefresh()
+      fetchData()
       setTimeout(() => setSaleSuccess(false), 3000)
     } catch (e) {
       console.error('Error processing sale:', e)
@@ -989,7 +1017,7 @@ function SalesModule({ products, onRefresh }) {
 
           <button
             disabled={cart.length === 0 || processing}
-            onClick={handleConfirmSale}
+            onClick={handleCheckout}
             className={`
               w-full py-3.5 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer
               ${cart.length > 0 && !processing
@@ -1021,17 +1049,13 @@ function SalesModule({ products, onRefresh }) {
 // ============================================================
 // CLIENTS MODULE
 // ============================================================
-function ClientsModule({ clients, loading, onRefresh }) {
+function ClientsModule({ clients, loading, onRefresh, organization, fetchData }) {
   const [showAddModal, setShowAddModal] = useState(false)
+  const [clientFormData, setClientFormData] = useState({ name: '', cedula: '', phone: '' })
+  const [editClientMode, setEditClientMode] = useState(null)
 
   if (loading) return <LoadingSpinner text="Cargando clientes..." />
 
-  const handleAddClient = async (client) => {
-    await createClient(client)
-    onRefresh()
-  }
-
-  return (
     <div className="space-y-5">
       {showAddModal && (
         <AddClientModal onClose={() => setShowAddModal(false)} onSave={handleAddClient} />
@@ -1523,12 +1547,19 @@ export default function App() {
   const { organization } = useOrganization()
   
   const fetchData = useCallback(async () => {
+    if (!organization?.id) {
+      setProducts([])
+      setClients([])
+      setSales([])
+      setLoading(false)
+      return
+    }
     setLoading(true)
     try {
       const [productsData, clientsData, salesData] = await Promise.all([
-        listProducts(),
-        listClients(),
-        listSales(),
+        listProducts(organization.id),
+        listClients(organization.id),
+        listSales(organization.id),
       ])
       setProducts(productsData)
       setClients(clientsData)
@@ -1538,7 +1569,7 @@ export default function App() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [organization?.id])
 
   useEffect(() => {
     fetchData()
@@ -1557,11 +1588,11 @@ export default function App() {
           />
         )
       case 'ventas':
-        return <SalesModule products={products} onRefresh={fetchData} />
+        return <SalesModule products={products} onRefresh={fetchData} organization={organization} fetchData={fetchData} />
       case 'inventario':
-        return <InventoryModule products={products} loading={loading} onRefresh={fetchData} productLimit={productLimit} />
+        return <InventoryModule products={products} loading={loading} onRefresh={fetchData} productLimit={productLimit} organization={organization} fetchData={fetchData} />
       case 'clientes':
-        return <ClientsModule clients={clients} loading={loading} onRefresh={fetchData} />
+        return <ClientsModule clients={clients} loading={loading} onRefresh={fetchData} organization={organization} fetchData={fetchData} />
       case 'reportes':
         return <ReportesModule products={products} clients={clients} sales={sales} organization={organization} />
       case 'suscripcion':

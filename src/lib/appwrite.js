@@ -15,8 +15,10 @@ export const SALES_COLLECTION = 'sales'
 // ============================================================
 // PRODUCTS
 // ============================================================
-export async function listProducts() {
+export async function listProducts(orgId) {
+  if (!orgId) return []
   const response = await databases.listDocuments(DATABASE_ID, PRODUCTS_COLLECTION, [
+    Query.equal('orgId', orgId),
     Query.limit(100),
     Query.orderAsc('name'),
   ])
@@ -30,12 +32,13 @@ export async function listProducts() {
   }))
 }
 
-export async function createProduct(product) {
+export async function createProduct(orgId, product) {
   const response = await databases.createDocument(
     DATABASE_ID,
     PRODUCTS_COLLECTION,
     ID.unique(),
     {
+      orgId: orgId,
       name: product.name,
       category: product.category,
       price: product.price,
@@ -77,8 +80,10 @@ export async function deleteProduct(productId) {
 // ============================================================
 // CLIENTS
 // ============================================================
-export async function listClients() {
+export async function listClients(orgId) {
+  if (!orgId) return []
   const response = await databases.listDocuments(DATABASE_ID, CLIENTS_COLLECTION, [
+    Query.equal('orgId', orgId),
     Query.limit(100),
     Query.orderAsc('name'),
   ])
@@ -91,12 +96,13 @@ export async function listClients() {
   }))
 }
 
-export async function createClient(client) {
+export async function createClient(orgId, client) {
   const response = await databases.createDocument(
     DATABASE_ID,
     CLIENTS_COLLECTION,
     ID.unique(),
     {
+      orgId: orgId,
       name: client.name,
       cedula: client.cedula,
       phone: client.phone,
@@ -131,8 +137,10 @@ export async function updateClient(clientId, data) {
 // ============================================================
 // SALES
 // ============================================================
-export async function listSales() {
+export async function listSales(orgId) {
+  if (!orgId) return []
   const response = await databases.listDocuments(DATABASE_ID, SALES_COLLECTION, [
+    Query.equal('orgId', orgId),
     Query.limit(50),
     Query.orderDesc('createdDate'),
   ])
@@ -148,12 +156,13 @@ export async function listSales() {
   }))
 }
 
-export async function createSale(sale) {
+export async function createSale(orgId, sale) {
   const response = await databases.createDocument(
     DATABASE_ID,
     SALES_COLLECTION,
     ID.unique(),
     {
+      orgId: orgId,
       clientName: sale.clientName,
       items: JSON.stringify(sale.items),
       subtotal: sale.subtotal,
@@ -185,13 +194,13 @@ export async function createSale(sale) {
  * 2. Decrement stock for each product
  * 3. Return updated products list
  */
-export async function processSale(cart, clientName) {
+export async function processSale(orgId, cart, clientName) {
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0)
   const iva = subtotal * 0.15
   const total = subtotal + iva
 
   // Create sale record
-  const sale = await createSale({
+  const sale = await createSale(orgId, {
     clientName,
     items: cart.map((item) => ({
       productId: item.id,
