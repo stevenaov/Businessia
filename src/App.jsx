@@ -559,7 +559,7 @@ function DashboardModule({ products, clients, sales, loading, onNavigate }) {
 // ============================================================
 // INVENTORY MODULE
 // ============================================================
-function InventoryModule({ products, loading, onRefresh, productLimit }) {
+function InventoryModule({ products, loading, onRefresh, productLimit, organization, fetchData }) {
   const [search, setSearch] = useState('')
   const [filterCategory, setFilterCategory] = useState('Todos')
   const [showAddModal, setShowAddModal] = useState(false)
