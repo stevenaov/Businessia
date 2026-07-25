@@ -1634,9 +1634,9 @@ export default function App() {
   const productLimit = isEmpresarial ? Infinity : (isEmprendedor ? 500 : 1)
   const userLimit = isEmpresarial ? Infinity : (isEmprendedor ? 2 : 1)
 
-  // Redirect Cashiers (org:member) to POS directly
+  // Redirect Cashiers (org:member) to allowed modules
   useEffect(() => {
-    if (orgRole === 'org:member' && activeModule !== 'ventas') {
+    if (orgRole === 'org:member' && activeModule !== 'ventas' && activeModule !== 'clientes') {
       setActiveModule('ventas')
     }
   }, [orgRole, activeModule])
