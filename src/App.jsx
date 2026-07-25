@@ -1051,11 +1051,25 @@ function SalesModule({ products, onRefresh, organization, fetchData }) {
 // ============================================================
 function ClientsModule({ clients, loading, onRefresh, organization, fetchData }) {
   const [showAddModal, setShowAddModal] = useState(false)
-  const [clientFormData, setClientFormData] = useState({ name: '', cedula: '', phone: '' })
-  const [editClientMode, setEditClientMode] = useState(null)
 
   if (loading) return <LoadingSpinner text="Cargando clientes..." />
 
+  // Submit Cliente
+  const handleAddClient = async (clientData) => {
+    if (!organization?.id) {
+      alert('Debes seleccionar una organización.')
+      return
+    }
+    try {
+      await createClient(organization.id, clientData)
+      setShowAddModal(false)
+      fetchData()
+    } catch (e) {
+      alert('Error guardando cliente')
+    }
+  }
+
+  return (
     <div className="space-y-5">
       {showAddModal && (
         <AddClientModal onClose={() => setShowAddModal(false)} onSave={handleAddClient} />
