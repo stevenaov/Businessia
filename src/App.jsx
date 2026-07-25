@@ -259,7 +259,10 @@ function AddProductModal({ onClose, onSave }) {
   const [saving, setSaving] = useState(false)
 
   const handleSave = async () => {
-    if (!form.name || !form.category || !form.price || !form.stock || !form.sku) return
+    if (!form.name || !form.category || !form.price || !form.stock || !form.sku) {
+      alert('Por favor, completa todos los campos del producto.')
+      return
+    }
     setSaving(true)
     try {
       await onSave({
@@ -330,7 +333,10 @@ function AddClientModal({ onClose, onSave }) {
   const [saving, setSaving] = useState(false)
 
   const handleSave = async () => {
-    if (!form.name || !form.cedula || !form.phone) return
+    if (!form.name || !form.cedula || !form.phone) {
+      alert('Por favor, completa todos los campos del cliente.')
+      return
+    }
     setSaving(true)
     try {
       await onSave({
