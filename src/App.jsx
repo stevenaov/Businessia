@@ -571,20 +571,14 @@ function InventoryModule({ products, loading, onRefresh, productLimit }) {
   })
 
   // Submit Producto
-  const handleAddProduct = async (e) => {
-    e.preventDefault()
+  const handleAddProduct = async (productData) => {
     if (!organization?.id) {
       alert('Debes seleccionar una organización.')
       return
     }
     
     try {
-      if (editMode) {
-        await updateProduct(editMode.id, formData)
-      } else {
-        await createProduct(organization.id, formData)
-      }
-      setEditMode(null)
+      await createProduct(organization.id, productData)
       setShowAddModal(false)
       fetchData()
     } catch (e) {
@@ -596,11 +590,8 @@ function InventoryModule({ products, loading, onRefresh, productLimit }) {
     <div className="space-y-5">
       {showAddModal && (
         <AddProductModal 
-          onClose={() => { setShowAddModal(false); setEditMode(null); }} 
+          onClose={() => setShowAddModal(false)} 
           onSave={handleAddProduct} 
-          formData={formData}
-          setFormData={setFormData}
-          editMode={editMode}
         />
       )}
 
