@@ -42,6 +42,9 @@ function ClerkWithRoutes() {
       navigate={(to) => navigate(to)}
       localization={esES}
       appearance={appearance}
+      signInFallbackRedirectUrl="/app"
+      signUpFallbackRedirectUrl="/app"
+      afterSignOutUrl="/"
     >
       <Routes>
         <Route path="/" element={<LandingPage />} />
