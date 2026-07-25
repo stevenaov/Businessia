@@ -127,9 +127,19 @@ export default function LandingPage() {
       </div>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-gray-400 py-12 text-center border-t border-gray-800">
-        <p className="mb-2">© 2026 Businessia. Desarrollado para Portoviejo, Ecuador.</p>
-        <p className="text-sm text-gray-500">Un proyecto de investigación científica.</p>
+      <footer className="bg-gray-900 text-gray-400 py-12 border-t border-gray-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6 text-center md:text-left">
+            <div>
+              <p className="mb-2 text-gray-300">© 2026 Businessia. Desarrollado para Portoviejo, Ecuador.</p>
+              <p className="text-sm text-gray-500">Un proyecto de investigación científica.</p>
+            </div>
+            <div className="flex gap-6 text-sm">
+              <Link to="/terms" className="hover:text-white transition-colors">Términos de Servicio</Link>
+              <Link to="/privacy" className="hover:text-white transition-colors">Política de Privacidad</Link>
+            </div>
+          </div>
+        </div>
       </footer>
     </div>
   )

@@ -4,6 +4,8 @@ import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom'
 import './index.css'
 import App from './App.jsx'
 import LandingPage from './pages/LandingPage.jsx'
+import TermsPage from './pages/TermsPage.jsx'
+import PrivacyPage from './pages/PrivacyPage.jsx'
 import { ClerkProvider } from '@clerk/clerk-react'
 import { esES } from '@clerk/localizations'
 
@@ -48,6 +50,8 @@ function ClerkWithRoutes() {
     >
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/app/*" element={<App />} />
       </Routes>
     </ClerkProvider>
